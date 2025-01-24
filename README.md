@@ -1,5 +1,15 @@
-# Go UR
+# Go UR - WIP 🔨
 
-## UR20 Sim
+This is a repository for an implementation of the UR RTDE protocol. It is useful for integrating your UR cobots with more complex systems and applications.
 
-`docker run --rm -it -p 5900:5900 -p 6080:6080 -p 29999-30004:29999-30004 --platform linux/amd64 --privileged -e ROBOT_MODEL=UR20 --name ursim universalrobots/ursim_e-series "control_log"`
+## Get started
+
+Pull the image and start the dockerized ur-sim: `scripts/ur-sim.sh`
+
+## Controller
+
+A controller is used to send URScript commands to the cobot.
+
+## Receiver
+
+A receiver configures an I/O setup and then listens for incoming data.
