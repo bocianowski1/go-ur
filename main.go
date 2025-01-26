@@ -41,7 +41,7 @@ func main() {
 		log.Fatalf("Failed to start data exchange: %v", err)
 	}
 
-	state, err := r.Recv(ur.RTDE_DATA_PACKAGE)
+	state, err := r.Listen(ur.RTDE_DATA_PACKAGE)
 	if err != nil {
 		log.Fatalf("Failed to receive data: %v", err)
 	}

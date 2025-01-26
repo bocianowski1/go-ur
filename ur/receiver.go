@@ -22,7 +22,6 @@ func NewReceiver(ctx context.Context, cfg URConfig) *URReceiver {
 	}
 }
 
-// extend URCommon connect method
 func (r *URReceiver) Connect() error {
 	err := r.URCommon.Connect()
 	if err != nil {
@@ -39,48 +38,37 @@ func (r *URReceiver) Connect() error {
 }
 
 func (r *URReceiver) StartDataExchange() error {
-	// Create the payload
 	payload := r.createPayload(RTDE_CONTROL_PACKAGE_START, nil)
 
-	// Send the payload to the robot
 	_, err := r.conn.Write(payload)
 	if err != nil {
 		return err
 	}
 
-	// Read the robot's response
 	response := make([]byte, 1024)
 	n, err := r.conn.Read(response)
 	if err != nil {
 		return err
 	}
 
-	// Parse the response
 	if n < 3 {
 		return fmt.Errorf("invalid response: too short")
 	}
 
-	header := Header{
-		PkgSize: binary.BigEndian.Uint16(response[0:2]),
-		Cmd:     response[2],
+	accepted := response[3] == 1
+	if !accepted {
+		return fmt.Errorf("failed to start data exchange")
 	}
-
-	accepted := response[3]
-
-	log.Println("Data exchange started")
-	log.Println("Header:", header)
-	log.Println("Accepted:", accepted)
 
 	return nil
 }
 
-func (r *URReceiver) Recv(command uint8) ([]byte, error) {
+func (r *URReceiver) Listen(command uint8) ([]byte, error) {
 	resp, err := r.recvToBuffer(r.conn)
 	if err != nil {
 		return nil, err
 	}
 
-	// Process the buffer
 	for len(resp) >= 3 {
 		packetHeader := UnpackControlHeader(resp)
 
@@ -102,7 +90,7 @@ func (r *URReceiver) Recv(command uint8) ([]byte, error) {
 				log.Println("Skipping package (2)")
 			}
 		} else {
-			break // Not enough data for a complete packet
+			break
 		}
 	}
 
@@ -116,14 +104,10 @@ type OutputRequest struct {
 }
 
 func (r *OutputRequest) ToBytes() []byte {
-	// Encode the frequency as a big-endian double
 	freqBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(freqBytes, math.Float64bits(r.Freq))
 
-	// Encode the variable names as a UTF-8 string
 	varsBytes := []byte(r.Vars)
-
-	// Combine the frequency and variable names into the payload
 	payload := append(freqBytes, varsBytes...)
 
 	return payload
@@ -136,9 +120,6 @@ type OutputResponse struct {
 }
 
 func (r *URReceiver) SendOutputSetup(vars string) (*OutputResponse, error) {
-	log.Println("Sending output setup...")
-
-	// Create the payload
 	req := &OutputRequest{
 		Header: &Header{
 			PkgSize: 0,
@@ -149,22 +130,17 @@ func (r *URReceiver) SendOutputSetup(vars string) (*OutputResponse, error) {
 	}
 	payload := r.createPayload(RTDE_CONTROL_PACKAGE_SETUP_OUTPUTS, req.ToBytes())
 
-	// Send the payload to the robot
 	_, err := r.conn.Write(payload)
 	if err != nil {
 		return nil, err
 	}
 
-	// Read the robot's response
 	response := make([]byte, 4096)
 	n, err := r.conn.Read(response)
 	if err != nil {
 		return nil, err
 	}
 
-	log.Printf("Received %d bytes\n", n)
-
-	// Parse the response
 	if n < 4 {
 		return nil, fmt.Errorf("invalid response: too short")
 	}
@@ -186,35 +162,28 @@ func (r *URReceiver) SendOutputSetup(vars string) (*OutputResponse, error) {
 
 // negotiateProtocolVersion2 sends the RTDE_REQUEST_PROTOCOL_VERSION message and handles the response
 func (r *URReceiver) negotiateProtocolVersion2() (bool, error) {
-	// Create the payload
 	payload := r.createRTDEProtocolRequest(RTDE_PROTOCOL_VERSION_2)
 
-	// Send the payload to the robot
 	_, err := r.conn.Write(payload)
 	if err != nil {
 		return false, err
 	}
 
-	// Read the robot's response
 	response := make([]byte, 1024)
 	n, err := r.conn.Read(response)
 	if err != nil {
 		return false, err
 	}
 
-	// Parse the response
 	if n < 3 {
 		return false, fmt.Errorf("invalid response: too short")
 	}
 
-	// do not need the header from the response,
-	// only the accepted flag
 	accepted := response[3] == 1
 	return accepted, nil
 }
 
 func (r *URReceiver) recvToBuffer(conn net.Conn) ([]byte, error) {
-	// Read data from the socket into the buffer
 	buf := make([]byte, 4096)
 	n, err := conn.Read(buf)
 	if err != nil {
@@ -228,36 +197,26 @@ func (r *URReceiver) recvToBuffer(conn net.Conn) ([]byte, error) {
 }
 
 func (r *URReceiver) createPayload(pkgType uint8, payload []byte) []byte {
-	// Calculate the package size (header: 3 bytes + payload size)
 	packageSize := uint16(3 + len(payload))
 
-	// Create a buffer to hold the payload
 	buf := make([]byte, 0, packageSize)
 
-	// Add the header
-	buf = binary.BigEndian.AppendUint16(buf, packageSize) // package size
-	buf = append(buf, pkgType)                            // package type
+	buf = binary.BigEndian.AppendUint16(buf, packageSize)
+	buf = append(buf, pkgType)
 
-	// Add the payload
 	buf = append(buf, payload...)
-
 	return buf
 }
 
-// createRTDEProtocolRequest creates the payload for RTDE_REQUEST_PROTOCOL_VERSION
 func (r *URReceiver) createRTDEProtocolRequest(protocolVersion uint16) []byte {
 	// Calculate the package size (header: 3 bytes, payload: 2 bytes)
 	packageSize := uint16(3 + 2)
 
-	// Create a buffer to hold the payload
 	buf := make([]byte, 0, packageSize)
+	buf = binary.BigEndian.AppendUint16(buf, packageSize)
+	buf = append(buf, RTDE_REQUEST_PROTOCOL_VERSION)
 
-	// Add the header
-	buf = binary.BigEndian.AppendUint16(buf, packageSize) // package size
-	buf = append(buf, RTDE_REQUEST_PROTOCOL_VERSION)      // package type
-
-	// Add the payload (protocol version)
-	buf = binary.BigEndian.AppendUint16(buf, protocolVersion) // protocol version
-
+	// Append payload (protocol version)
+	buf = binary.BigEndian.AppendUint16(buf, protocolVersion)
 	return buf
 }

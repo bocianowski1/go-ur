@@ -86,17 +86,14 @@ func defaultMoveOptions() MoveOptions {
 	}
 }
 
-// Option function type
 type MoveOption func(*MoveOptions)
 
-// Function to set acceleration
 func WithAcceleration(acceleration float64) MoveOption {
 	return func(opts *MoveOptions) {
 		opts.Acceleration = acceleration
 	}
 }
 
-// Function to set velocity
 func WithVelocity(velocity float64) MoveOption {
 	return func(opts *MoveOptions) {
 		opts.Velocity = velocity
@@ -127,7 +124,6 @@ func (c *URController) MoveJSequence(cmds []MoveCmd) error {
 	programSeq := "def move_sequence():\n"
 
 	for _, cmd := range cmds {
-		// pad the sequence with 2 spaces in front
 		s := cmd.String()
 		lines := strings.Split(s, "\n")
 		for i, line := range lines {
@@ -138,7 +134,6 @@ func (c *URController) MoveJSequence(cmds []MoveCmd) error {
 
 	programSeq += "end\n"
 
-	// log.Println(programSeq)
 	return c.SendCommand(programSeq)
 }
 
@@ -172,71 +167,3 @@ func (c *URController) DoWork() error {
 
 	return c.MoveJSequence(positions)
 }
-
-// type JointData struct {
-// 	PackageSize int
-// 	PackageType uint8
-// 	QActual     float64
-// 	QTarget     float64
-// 	QdActual    float64
-// 	IActual     float32
-// 	VActual     float32
-// 	TMotor      float32
-// 	TMicro      float32
-// 	JointMode   uint8
-// }
-
-// // RobotStatePackageType contains constants for the packageType field
-// const (
-// 	RobotStatePackageTypeJointData = 1
-// )
-
-// func (c *URController) GetJointPositions() (JointData, error) {
-// 	err := c.SendCommand("get_actual_joint_positions()")
-// 	if err != nil {
-// 		return JointData{}, err
-// 	}
-
-// 	b, err := c.ReadRawResp()
-// 	if err != nil {
-// 		return JointData{}, err
-// 	}
-
-// 	if len(b) < 46 { // Ensure the response is at least the expected size
-// 		return JointData{}, fmt.Errorf("response too short, got %d bytes", len(b))
-// 	}
-
-// 	packageSize := binary.LittleEndian.Uint32(b[0:4])
-// 	packageType := b[4]
-
-// 	if packageType != RobotStatePackageTypeJointData {
-// 		return JointData{}, fmt.Errorf("unexpected package type: %d", packageType)
-// 	}
-
-// 	qActual := math.Float64frombits(binary.LittleEndian.Uint64(b[5:13]))
-// 	qTarget := math.Float64frombits(binary.LittleEndian.Uint64(b[13:21]))
-// 	qdActual := math.Float64frombits(binary.LittleEndian.Uint64(b[21:29]))
-// 	iActual := math.Float32frombits(binary.LittleEndian.Uint32(b[29:33]))
-// 	vActual := math.Float32frombits(binary.LittleEndian.Uint32(b[33:37]))
-// 	tMotor := math.Float32frombits(binary.LittleEndian.Uint32(b[37:41]))
-// 	tMicro := math.Float32frombits(binary.LittleEndian.Uint32(b[41:45]))
-// 	jointMode := b[45]
-
-// 	// Validate parsed values
-// 	if math.IsNaN(qActual) || math.IsNaN(qTarget) {
-// 		return JointData{}, fmt.Errorf("received NaN value in joint positions")
-// 	}
-
-// 	return JointData{
-// 		PackageSize: int(packageSize),
-// 		PackageType: packageType,
-// 		QActual:     qActual,
-// 		QTarget:     qTarget,
-// 		QdActual:    qdActual,
-// 		IActual:     iActual,
-// 		VActual:     vActual,
-// 		TMotor:      tMotor,
-// 		TMicro:      tMicro,
-// 		JointMode:   jointMode,
-// 	}, nil
-// }

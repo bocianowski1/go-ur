@@ -24,14 +24,3 @@ func floatArrayToString(arr []float64) string {
 	str += "]"
 	return str
 }
-
-func stringToFloatArray(str string) []float64 {
-	var arr []float64
-	for _, s := range str {
-		if s == '[' || s == ']' || s == ',' {
-			continue
-		}
-		arr = append(arr, float64(s))
-	}
-	return arr
-}
